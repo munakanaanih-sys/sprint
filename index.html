@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<title>مختبر النابض الافتراضي</title>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Reem+Kufi:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: a single lab notebook column; a sticky header with the ten research steps as a progress rail. */
+:root{
+  --bg:#EEF2F5; --paper:#FFFFFF; --ink:#14263A; --muted:#5B6B7C; --line:#D5DEE7;
+  --steel:#2F6690; --steel-soft:#E1ECF5; --brass:#B7791F; --brass-soft:#F8EEDC;
+  --ok:#2E7D4F; --ok-soft:#E3F2E8; --bad:#B23A3A; --bad-soft:#F8E4E4;
+  --spring:#7A8896; --rulerbg:#FBF6E8;
+  --f-display:"Reem Kufi","IBM Plex Sans Arabic",Tahoma,sans-serif;
+  --f-body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1720; --paper:#16212C; --ink:#E6EDF3; --muted:#9AAAB9; --line:#2A3A4A;
+  --steel:#6FA8D6; --steel-soft:#1C3145; --brass:#E0A84A; --brass-soft:#3A2E18;
+  --ok:#5CC08A; --ok-soft:#18321F; --bad:#E27272; --bad-soft:#3A1C1C; --spring:#A9B6C2; --rulerbg:#2A2618; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1720; --paper:#16212C; --ink:#E6EDF3; --muted:#9AAAB9; --line:#2A3A4A;
+  --steel:#6FA8D6; --steel-soft:#1C3145; --brass:#E0A84A; --brass-soft:#3A2E18;
+  --ok:#5CC08A; --ok-soft:#18321F; --bad:#E27272; --bad-soft:#3A1C1C; --spring:#A9B6C2; --rulerbg:#2A2618; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;direction:rtl}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:0 40px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line)}
+.topin{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:8px;background:#fff;object-fit:contain;flex:none}
+.brand{min-width:0;flex:1}
+.brand b{font-family:var(--f-display);font-size:19px;display:block;line-height:1.2}
+.brand small{color:var(--muted);font-size:12.5px}
+.who{font-size:13px;background:var(--steel-soft);color:var(--steel);padding:4px 10px;border-radius:99px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+.rail{max-width:860px;margin:0 auto;padding:0 16px 10px;display:flex;gap:4px}
+.rail .rl{flex:1;height:8px;border-radius:4px;background:var(--line);border:0;padding:0;cursor:pointer}
+.rail .rl.done{background:var(--steel)} .rail .rl.cur{background:var(--brass)}
+.pts{margin-inline-start:auto;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;border:1px solid var(--line);border-radius:99px;padding:1px 9px}
+h3{font-family:var(--f-display);font-size:19px;margin:22px 0 6px}
+.wrongs{padding-inline-start:20px} .wrongs li{margin:6px 0} .wrongs a{color:var(--bad)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px}
+.stat{background:var(--steel-soft);border-radius:10px;padding:10px 14px}
+.stat .sv{font-family:var(--f-display);font-size:28px;color:var(--steel);line-height:1.2}
+.stat .sl{font-size:13px;color:var(--muted)}
+.sortb{font:inherit;font-weight:700;color:inherit;background:none;border:0;cursor:pointer;padding:0} .sortb.on{text-decoration:underline}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px clamp(16px,4vw,30px);margin-top:20px}
+.eyebrow{font-size:12.5px;letter-spacing:.02em;color:var(--brass);font-weight:700}
+h1,h2{font-family:var(--f-display);line-height:1.35;text-wrap:balance;margin:.2em 0 .4em}
+h1{font-size:clamp(26px,5vw,36px)} h2{font-size:clamp(21px,4vw,26px)}
+p{margin:.4em 0 .8em}
+.muted{color:var(--muted)}
+.law{font-family:var(--f-mono);direction:ltr;unicode-bidi:isolate;display:inline-block;background:var(--steel-soft);color:var(--steel);padding:2px 10px;border-radius:6px}
+.note{background:var(--brass-soft);border-inline-start:4px solid var(--brass);padding:12px 16px;border-radius:8px;margin:12px 0}
+.info{background:var(--steel-soft);border-inline-start:4px solid var(--steel);padding:12px 16px;border-radius:8px;margin:12px 0}
+.q{border-top:1px dashed var(--line);padding-top:16px;margin-top:18px}
+.q:first-of-type{border-top:0}
+.qh{display:flex;gap:10px;align-items:flex-start;font-weight:700}
+.qn{flex:none;width:28px;height:28px;border-radius:50%;background:var(--steel);color:var(--paper);display:grid;place-items:center;font-size:14px;margin-top:2px}
+.qh span:last-child{min-width:0}
+.mark{margin-inline-start:auto;font-size:13px;padding:2px 10px;border-radius:99px;white-space:nowrap}
+.mark.ok{background:var(--ok-soft);color:var(--ok)} .mark.bad{background:var(--bad-soft);color:var(--bad)} .mark.part{background:var(--brass-soft);color:var(--brass)}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:start;width:100%;font:inherit;color:inherit;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer}
+.opt:hover{border-color:var(--steel)}
+.opt .dot{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);margin-top:4px}
+.opt.multi .dot{border-radius:4px}
+.opt.sel{border-color:var(--steel);background:var(--steel-soft)} .opt.sel .dot{background:var(--steel);border-color:var(--steel)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)} .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt:disabled{cursor:default}
+.bank{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border:1.5px dashed var(--line);border-radius:10px;margin:10px 0;min-height:52px}
+.bank .lbl{width:100%;font-size:12.5px;color:var(--muted)}
+.chip{font:inherit;font-size:15px;padding:5px 12px;border-radius:8px;border:1.5px solid var(--brass);background:var(--brass-soft);color:var(--ink);cursor:grab;touch-action:manipulation}
+.chip.picked{outline:3px solid var(--steel);outline-offset:1px}
+.chip.used{opacity:.3;cursor:default}
+.cloze{line-height:2.6}
+.blank{display:inline-block;min-width:130px;min-height:34px;vertical-align:middle;padding:0 10px;border:none;border-bottom:2.5px solid var(--steel);background:var(--steel-soft);border-radius:6px 6px 0 0;font:inherit;color:var(--ink);cursor:pointer;line-height:34px;text-align:center}
+.blank.over{background:var(--brass-soft)} .blank.right{border-color:var(--ok);background:var(--ok-soft)} .blank.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.blank:empty::after{content:"اسحب كلمة إلى هنا";color:var(--muted);font-size:12.5px}
+.cls{display:grid;gap:8px;margin-top:10px}
+.clsrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.clsrow>span{min-width:0;flex:1 1 180px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:14px;padding:4px 12px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.seg button.sel{background:var(--steel);border-color:var(--steel);color:var(--paper)}
+.seg button.right{background:var(--ok);border-color:var(--ok);color:var(--paper)} .seg button.wrong{background:var(--bad);border-color:var(--bad);color:var(--paper)}
+.order{list-style:none;padding:0;margin:10px 0;display:grid;gap:8px}
+.order li{display:flex;gap:10px;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--paper)}
+.order li.right{border-color:var(--ok);background:var(--ok-soft)} .order li.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.order .n{flex:none;font-family:var(--f-mono);color:var(--brass);width:22px;text-align:center}
+.order .t{flex:1;min-width:0}
+.order .mv{display:flex;flex-direction:column;gap:2px}
+.order .mv button{font-size:12px;line-height:1;padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);cursor:pointer}
+.num{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:7px 10px}
+input:focus-visible,button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.num input{width:150px;direction:ltr;text-align:center;font-family:var(--f-mono)}
+.num input.right{border-color:var(--ok);background:var(--ok-soft)} .num input.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.unit{font-family:var(--f-mono);color:var(--muted);direction:ltr}
+.fb{font-size:14px;margin-top:6px;color:var(--muted)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
+.btn{font:inherit;font-weight:700;border-radius:10px;padding:10px 20px;border:2px solid var(--steel);background:var(--steel);color:var(--paper);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--steel)}
+.btn.brass{background:var(--brass);border-color:var(--brass)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:13.5px;color:var(--muted)}
+/* lab */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px;margin-top:12px}
+@media (max-width:700px){.lab{grid-template-columns:1fr}}
+.bench{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:flex-start;justify-content:center}
+.bench svg{display:block;min-width:0}
+.bench>svg{flex:1 1 auto}
+.mag{width:150px;flex:none}
+.mag .cap{font-size:12px;color:var(--muted);text-align:center}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ctl .btn{padding:7px 14px;font-size:15px}
+.trials{display:flex;gap:4px}
+.state{font-size:14px;color:var(--muted);margin:4px 0 8px}
+.state b{color:var(--ink);font-family:var(--f-mono)}
+.tblw{overflow-x:auto}
+table.data{border-collapse:collapse;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
+table.data th,table.data td{border:1px solid var(--line);padding:5px 6px;text-align:center}
+table.data th{background:var(--steel-soft);color:var(--steel);font-weight:700;font-size:13px}
+table.data td input{width:72px;padding:4px 6px;direction:ltr;text-align:center;font-family:var(--f-mono);font-size:14px}
+table.data td input.now{border-color:var(--brass);box-shadow:0 0 0 2px var(--brass-soft)}
+table.data td input.right{border-color:var(--ok);background:var(--ok-soft)} table.data td input.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.ltr{direction:ltr;unicode-bidi:isolate}
+.steps{padding-inline-start:22px} .steps li{margin:4px 0}
+.up{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1.5px dashed var(--steel);border-radius:10px;padding:14px;margin:12px 0}
+.up img{max-height:220px;border-radius:8px;border:1px solid var(--line)}
+.grade{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.big{font-family:var(--f-display);font-size:64px;line-height:1;color:var(--steel)}
+.code{font-family:var(--f-mono);font-size:22px;letter-spacing:.15em;background:var(--brass-soft);padding:4px 12px;border-radius:8px;direction:ltr;display:inline-block}
+footer.sig{text-align:center;color:var(--muted);font-size:14px;margin-top:28px}
+footer.sig b{color:var(--ink)}
+details.teacher{margin-top:16px;font-size:14px}
+details.teacher summary{cursor:pointer;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.err{color:var(--bad);font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:0 20px}
+.lbl{font-weight:700;display:block;margin:14px 0 6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.keys{display:flex;gap:24px;flex-wrap:wrap;margin:10px 0}
+.keys .code{font-size:26px}
+.pill{font-size:12.5px;padding:2px 10px;border-radius:99px;background:var(--line);color:var(--ink);white-space:nowrap}
+.pill.submitted{background:var(--ok-soft);color:var(--ok)} .pill.started{background:var(--brass-soft);color:var(--brass)}
+.btn.mini{padding:3px 10px;font-size:13px}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.brandmark{width:44px;height:44px;flex:none;border-radius:10px;background:var(--steel-soft);display:grid;place-items:center}
+@media print{header.top,.noprint,footer.sig{display:none!important}.card{border:0;padding:0}body{background:#fff;color:#000}table.data th{background:#eee!important;color:#000!important}}
+
+.prof{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin:8px 0}
+.pcol{border:1px solid var(--line);border-inline-start:4px solid var(--line);border-radius:10px;padding:10px 14px}
+.pcol.good{border-inline-start-color:var(--ok);background:var(--ok-soft)} .pcol.weak{border-inline-start-color:var(--bad);background:var(--bad-soft)}
+.pcol ul{margin:6px 0 0;padding-inline-start:18px} .pcol li{margin:3px 0}
+.bars{display:grid;gap:6px;margin:8px 0}
+.bar{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(80px,1fr) 44px;gap:10px;align-items:center;font-size:13.5px}
+.bar .bl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .bt{height:12px;border-radius:6px;background:var(--line);overflow:hidden;display:block}
+.bar .bt i{display:block;height:100%;border-radius:6px}
+.bar .bt i.low{background:var(--bad)} .bar .bt i.mid{background:var(--brass)} .bar .bt i.high{background:var(--ok)}
+.bar .bv{font-family:var(--f-mono);text-align:end}
+@media (max-width:520px){.bar{grid-template-columns:1fr 44px}.bar .bl{grid-column:1/-1;white-space:normal}}
+</style>
+
+
+</head>
+<body>
+<header class="top">
+  <div class="topin">
+    <div class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 40" width="18" height="30"><path d="M12 1v4 l8 2.5 -16 3 16 3 -16 3 16 3 -16 3 16 3 -8 2.5v4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" style="color:var(--steel)"/><rect x="6" y="33" width="12" height="6" rx="1.5" fill="var(--brass)"/></svg></div>
+    <div class="brand"><b>مختبر النابض الافتراضي</b><small>اختبار محوسب في البحث العلمي · إيجاد ثابت النابض</small></div>
+    <div class="who" id="who" hidden></div>
+  </div>
+  <div class="rail" id="rail"></div>
+</header>
+<main class="wrap" id="app"></main>
+<div class="wrap"><footer class="sig">إعداد المعلمة: <b>منى مصطفى</b></footer></div>
+<script>
+'use strict';
+// ---------- utilities ----------
+const $ = (s, r = document) => r.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (v == null || v === false) continue;
+    if (k === 'class') e.className = v; else if (k === 'html') e.innerHTML = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? '' : v); }
+  for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
+  return e; };
+const norm = s => s.trim().replace(/\s+/g, ' ').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').toLowerCase();
+const fnv = s => { let x = 2166136261 >>> 0; for (const c of s) { x ^= c.codePointAt(0); x = Math.imul(x, 16777619) >>> 0; } return x >>> 0; };
+const rngFrom = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+const shuffle = (arr, r) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fmt = (x, d = 2) => (Math.round(x * 10 ** d) / 10 ** d).toString();
+const verify = (name, grade) => fnv('spring-lab|' + norm(name) + '|' + grade).toString(36).toUpperCase().padStart(7, '0').slice(-6);
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+// ---------- per-student experiment ----------
+const G = 10, MASSES = [0, 50, 100, 150, 200, 250];
+let S = null;   // state
+let P = null;   // personal parameters
+function makeParams(name) {
+  const r = rngFrom(fnv(norm(name)));
+  const k = 12 + Math.floor(r() * 57) * 0.5;            // 12 … 40 N/m
+  const L0 = 8 + Math.round(r() * 60) / 10;             // 8.0 … 14.0 cm
+  const noise = [0, 1, 2].map(() => MASSES.map((m, i) => (r() - 0.5) * (i ? 0.24 : 0.08)));
+  const kq = [15, 20, 25, 30, 40, 50, 60][Math.floor(r() * 7)], fq = [1, 1.5, 2, 2.5, 3, 4][Math.floor(r() * 6)];
+  const mq = [70, 80, 120, 180, 220, 300][Math.floor(r() * 6)];
+  return { k, L0, noise, kq, fq, mq, seed: fnv(norm(name)) };
+}
+const trueL = (t, i) => P.L0 + (MASSES[i] * G / 1000) / P.k * 100 + P.noise[t][i];
+const readOf = (t, i) => Math.round(trueL(t, i) * 10) / 10;
+
+// student's own data → regression (ΔL in m vs F)
+function myData() {
+  const rows = MASSES.map((m, i) => { const F = m * G / 1000; const dl = [0, 1, 2].map(t => { const L = parseFloat(S.read[t][i]), L0 = parseFloat(S.read[t][0]); return isFinite(L) && isFinite(L0) ? L - L0 : NaN; });
+    const ok = dl.filter(isFinite); const avg = ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : NaN; return { m, F, dl, avg }; });
+  const pts = rows.filter(r => isFinite(r.avg)).map(r => [r.F, r.avg / 100]);
+  const n = pts.length, sx = pts.reduce((a, p) => a + p[0], 0), sy = pts.reduce((a, p) => a + p[1], 0);
+  const sxx = pts.reduce((a, p) => a + p[0] * p[0], 0), sxy = pts.reduce((a, p) => a + p[0] * p[1], 0);
+  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  return { rows, slope };
+}
+
+// ---------- question bank ----------
+const STEPS = [
+ { tag: 'الخطوة 1', title: 'الملاحظة الدقيقة للظاهرة', intro: () => [
+     h('p', {}, 'هذا نابض معلّق. حرّك المؤشر لتسحب النابض بيدك بقوة أكبر أو أصغر، ثم اضغط «اترك النابض». راقب ما يحدث بموضوعية.'), handSpring()],
+   items: [
+   { id: 'o1', type: 'mcq', w: 2, q: 'ماذا لاحظت عندما زدت قوة السحب؟', a: 'تزداد استطالة النابض', d: ['يقصر النابض', 'لا يتغير طول النابض', 'يزداد طول النابض ثم يقصر وحده رغم استمرار السحب'] },
+   { id: 'o2', type: 'mcq', w: 2, q: 'ماذا يحدث عندما تترك النابض بعد سحب خفيف؟', a: 'يعود إلى طوله الأصلي', d: ['يبقى مشدوداً بنفس الطول', 'يصبح أقصر من طوله الأصلي بشكل دائم', 'يستمر في الاستطالة'] } ] },
+ { tag: 'الخطوة 2', title: 'الفضول وطرح الأسئلة', intro: () => [h('p', {}, 'الملاحظة تثير أسئلة. لكن ليس كل سؤال يمكن فحصه بتجربة علمية.')],
+   items: [
+   { id: 'q1', type: 'mcq', w: 3, q: 'أيّ من الأسئلة التالية سؤال علمي يمكن فحصه بتجربة وقياس؟', a: 'هل تزداد استطالة النابض كلما زادت القوة المؤثرة عليه؟', d: ['هل النابض الفضي أجمل من الذهبي؟', 'من هو أول من صنع نابضاً؟', 'لماذا يحب الأطفال اللعب بالنوابض؟'] },
+   { id: 'q2', type: 'multi', w: 3, q: 'اختر كل الأسئلة التي يمكن أن تتحول إلى مشكلة بحثية حول النابض:', a: ['ما تأثير القوة على استطالة النابض؟', 'هل يوجد حد لا يعود بعده النابض إلى طوله الأصلي؟'], d: ['ما لون النابض المفضل لديك؟', 'كم سعر النابض في الدكان؟'] } ] },
+ { tag: 'الخطوة 3', title: 'تحديد الهدف', intro: () => [h('p', {}, 'الهدف جملة تربط بين عاملين فقط: العامل المؤثّر ثم العامل المتأثّر.')],
+   items: [
+   { id: 'g1', type: 'cloze', w: 4, q: 'اسحب الكلمات المناسبة لإكمال الهدف:', parts: ['فحص العلاقة بين ', 0, ' و ', 1, '.'], a: ['القوة المؤثرة على النابض', 'استطالة النابض'], extra: ['لون النابض', 'طول المسطرة', 'زمن التجربة', 'درجة حرارة الغرفة'] },
+   { id: 'g2', type: 'classify', w: 5, q: 'صنّف كل عامل في تجربتنا:', cats: ['مؤثّر', 'متأثّر', 'ثابت'], rows: [['القوة المؤثرة على النابض (وزن الأثقال)', 0], ['استطالة النابض', 1], ['النابض نفسه', 2], ['نقطة تعليق النابض', 2], ['طريقة قراءة المسطرة', 2]] } ] },
+ { tag: 'الخطوة 4', title: 'الخلفية العلمية', intro: () => [
+     h('div', { class: 'info' }, h('b', {}, 'قانون هوك: '), 'ضمن حد المرونة، تتناسب القوة المؤثرة على النابض طردياً مع استطالته. ', h('br'), h('span', { class: 'law' }, 'F = k · ΔL'), h('br'),
+       'k ثابت النابض بوحدة N/m، ΔL الاستطالة بالمتر، F القوة بالنيوتن. الثقل المعلّق يؤثر بقوة تساوي وزنه: ', h('span', { class: 'law' }, 'F = m · g'), ' حيث g = 10 m/s².')],
+   items: [
+   { id: 'b1', type: 'mcq', w: 2, q: 'ما وحدة ثابت النابض k؟', a: 'N/m', d: ['N', 'm/N', 'kg'] },
+   { id: 'b2', type: 'mcq', w: 2, q: 'ماذا يحدث إذا تجاوزت القوة حد المرونة؟', a: 'يتشوّه النابض تشوّهاً دائماً ولا يعود لطوله الأصلي', d: ['يعود النابض لطوله الأصلي بشكل أسرع', 'يصبح ثابت النابض صفراً', 'لا يحدث أي تغيير'] },
+   { id: 'b3', type: 'mcq', w: 3, q: () => 'نابضان شُدّ كل منهما بنفس القوة، فاستطال النابض (أ) مسافة أكبر من النابض (ب). أيهما ثابته أكبر؟', a: 'النابض (ب)', d: ['النابض (أ)', 'ثابتهما متساوٍ', 'لا يمكن المقارنة'] },
+   { id: 'b4', type: 'num', w: 3, q: () => `نابض ثابته ${P.kq} N/m شُدّ بقوة ${P.fq} N. احسب استطالته بالسنتيمتر.`, unit: 'cm', ans: () => P.fq / P.kq * 100, tol: 0.03 } ] },
+ { tag: 'الخطوة 5', title: 'صياغة الفرضية', intro: () => [h('p', {}, 'الفرضية تفسير مبدئي نتوقعه، ونحافظ فيها على العاملين بنفس صياغة الهدف وبنفس الترتيب.')],
+   items: [
+   { id: 'h1', type: 'mcq', w: 4, q: 'اختر الفرضية المصاغة بشكل صحيح:', a: 'هناك علاقة طردية بين القوة المؤثرة على النابض واستطالة النابض.', d: ['هناك علاقة طردية بين استطالة النابض والقوة المؤثرة على النابض.', 'هل هناك علاقة بين القوة المؤثرة على النابض واستطالة النابض؟', 'هناك علاقة طردية بين القوة المؤثرة على النابض ولون النابض.'] },
+   { id: 'h2', type: 'mcq', w: 3, q: 'ما الذي يدعم هذه الفرضية من الخلفية العلمية؟', a: 'قانون هوك: القوة تتناسب طردياً مع الاستطالة ضمن حد المرونة', d: ['النوابض الثقيلة تستطيل أقل دائماً', 'النابض يقصر عندما نعلّق عليه ثقلاً', 'ثابت النابض يتغير مع كل ثقل نضيفه'] } ] },
+ { tag: 'الخطوة 6', title: 'سؤال البحث', intro: () => [h('p', {}, 'نتيجة التجربة ستكون إجابة عن سؤال البحث، لذلك يبقى مرتبطاً بالهدف والفرضية: نفس العاملين بنفس الترتيب.')],
+   items: [
+   { id: 'r1', type: 'mcq', w: 4, q: 'اختر سؤال البحث المناسب:', a: 'ما العلاقة بين القوة المؤثرة على النابض واستطالة النابض؟', d: ['ما العلاقة بين استطالة النابض والقوة المؤثرة على النابض؟', 'هناك علاقة بين القوة المؤثرة على النابض واستطالة النابض.', 'ما هو ثابت النابض؟'] } ] },
+ { tag: 'الخطوة 7', title: 'تصميم خطة العمل', intro: () => [h('p', {}, 'قبل التجربة نرتّب مراحل العمل، ونفكر في الصعوبات واحتمالات الخطأ.')],
+   items: [
+   { id: 'p1', type: 'order', w: 4, q: 'رتّب خطوات التنفيذ بالترتيب الصحيح (استعمل الأسهم):', a: ['علّق النابض عمودياً وثبّت المسطرة بجانبه', 'اقرأ الطول الابتدائي L₀ دون أثقال', 'علّق ثقلاً وانتظر حتى يتوقف الاهتزاز', 'اقرأ الطول الجديد L والعين في مستوى المؤشر', 'أضف ثقلاً آخر وكرّر القراءة', 'كرّر التجربة كاملة 3 مرات واحسب المعدل'] },
+   { id: 'p2', type: 'mcq', w: 3, q: 'المؤثر والمتأثر كلاهما عاملان كمّيان. كيف نسجّل النتائج ونحللها؟', a: 'جدول قياسات ورسم بياني خطي', d: ['وصف كلامي وصور فقط', 'جدول قياسات ورسم أعمدة', 'صور دون جدول'] },
+   { id: 'p3', type: 'mcq', w: 3, q: 'لماذا نكرر التجربة ثلاث مرات ونحسب المعدل؟', a: 'لتقليل تأثير أخطاء القياس العشوائية', d: ['لأن النابض يصبح أقوى بعد كل محاولة', 'لكي تصبح الأرقام أكبر', 'لأن المحاولة الأولى دائماً خاطئة'] } ] },
+ { tag: 'الخطوة 8', title: 'التجربة: جمع البيانات', lab: true, intro: () => [
+     h('p', {}, 'علّق الأثقال ثقلاً بعد ثقل، وانتظر حتى يستقر النابض، ثم اقرأ موضع المؤشر الأحمر على المسطرة (استعن بالعدسة المكبّرة) وسجّله في الجدول بالسنتيمتر، بدقة 1 mm (مثلاً 12.4).'),
+     h('div', { class: 'note' }, 'نفّذ المحاولات الثلاث. في بداية كل محاولة يكون النابض دون أثقال: سجّل L₀ في صف الكتلة 0.')],
+   items: [
+   { id: 'lab', type: 'lab', w: 12, q: 'سجّل قراءات الطول L (cm) في الجدول:' },
+   { id: 'f1', type: 'num', w: 3, q: () => `احسب القوة التي يؤثر بها ثقل كتلته ${P.mq} g على النابض (g = 10 m/s²).`, unit: 'N', ans: () => P.mq * G / 1000, tol: 0.02 } ] },
+ { tag: 'الخطوة 9 · أ', title: 'الرسم البياني في Excel', excel: true, intro: () => [],
+   items: [
+   { id: 'x0', type: 'upload', w: 4, q: 'ارفع صورة الرسم البياني الذي أنشأته في Excel:' },
+   { id: 'x1', type: 'mcq', w: 2, q: 'ما شكل الرسم البياني الذي حصلت عليه؟', a: 'خط مستقيم تصاعدي يمر قريباً من نقطة الأصل', d: ['خط مستقيم تنازلي', 'منحنى يرتفع ثم ينخفض', 'خط أفقي'] },
+   { id: 'x2', type: 'mcq', w: 2, q: 'إذن نوع العلاقة بين القوة المؤثرة على النابض واستطالة النابض:', a: 'علاقة طردية', d: ['علاقة عكسية', 'علاقة غير منتظمة', 'لا توجد علاقة'] } ] },
+ { tag: 'الخطوة 9 · ب', title: 'تحليل القانون واستخراج الثابت', intro: () => [h('p', {}, 'ارجع إلى قانون هوك ', h('span', { class: 'law' }, 'F = k · ΔL'), ' وإلى معادلة الخط التي أظهرها Excel على رسمك.')],
+   items: [
+   { id: 'a1', type: 'cloze', w: 3, q: 'أعد كتابة القانون بحيث تكون الاستطالة (على المحور العمودي) وحدها في طرف:', ltr: true, parts: ['ΔL = ', 0, ' × ', 1], a: ['1/k', 'F'], extra: ['k', 'ΔL', 'm', 'g', 'k/F'] },
+   { id: 'a2', type: 'cloze', w: 3, q: 'قارن مع معادلة الخط المستقيم y = a · x وأكمل:', parts: ['المتغير y يقابل ', 0, '، والمتغير x يقابل ', 1, '، والميل a يقابل ', 2, '.'], a: ['ΔL', 'F', '1/k'], extra: ['k', 'm', 'L₀'] },
+   { id: 'a3', type: 'mcq', w: 3, q: 'إذن، كيف تحسب ثابت النابض k من ميل الخط؟', a: 'k يساوي 1 مقسوماً على الميل', d: ['k يساوي الميل نفسه', 'k يساوي الميل مضروباً في F', 'k يساوي الميل مقسوماً على ΔL'] },
+   { id: 'a4', type: 'num', w: 3, q: 'اكتب ميل الخط من معادلة Excel (المعامل الذي بجانب x):', unit: 'm/N', ans: () => myData().slope, tol: 0.05 },
+   { id: 'a5', type: 'num', w: 4, q: 'احسب ثابت نابضك k:', unit: 'N/m', ans: () => 1 / myData().slope, tol: 0.05 } ] },
+ { tag: 'الخطوة 10', title: 'الاستنتاج وتفسير النتائج', intro: () => [],
+   items: [
+   { id: 'c1', type: 'cloze', w: 3, q: 'أكمل الاستنتاج:', parts: ['نلاحظ أن الرسم البياني ', 0, '، نستنتج أن العلاقة بين القوة المؤثرة على النابض واستطالة النابض علاقة ', 1, '، وهذه النتيجة ', 2, ' الفرضية.'], a: ['خط مستقيم تصاعدي', 'طردية', 'تدعم'], extra: ['خط تنازلي', 'منحنى غير منتظم', 'عكسية', 'لا تدعم'] },
+   { id: 'c2', type: 'mcq', w: 3, q: 'اختر التفسير العلمي الصحيح للنتيجة:', a: 'ضمن حد المرونة يولّد النابض قوة مُرجِعة تساوي k × ΔL توازن وزن الأثقال، لذلك تزداد الاستطالة بنفس نسبة زيادة القوة', d: ['الأثقال الثقيلة تجعل النابض أصلب، لذلك يزداد k مع كل ثقل', 'النابض يستطيل لأن الجاذبية تؤثر عليه هو فقط وليس على الأثقال', 'الاستطالة تزداد لأن المسطرة تتمدد مع زيادة الحمل'] },
+   { id: 'c3', type: 'multi', w: 3, q: 'لم تقع كل النقاط تماماً على الخط. اختر كل الأسباب المحتملة لذلك:', a: ['خطأ زاوية النظر عند قراءة المسطرة', 'القراءة قبل أن يستقر النابض تماماً', 'دقة المسطرة محدودة (1 mm)'], d: ['لون النابض', 'كتابة النتائج بقلم أزرق'] },
+   { id: 'c4', type: 'mcq', w: 2, q: 'كيف سيبدو خط نابض أصلب (k أكبر) على نفس الرسم؟', a: 'ميله أصغر', d: ['ميله أكبر', 'خط تنازلي', 'نفس الميل تماماً'] } ] },
+];
+const ALL = STEPS.flatMap(s => s.items);
+const weight = it => it.w || 1;
+
+// ---------- scoring ----------
+function grade(it) {
+  const v = S.ans[it.id];
+  if (it.type === 'mcq') return v === it.a ? 1 : 0;
+  if (it.type === 'multi') { const sel = v || []; const good = sel.filter(x => it.a.includes(x)).length, bad = sel.length - good; return Math.max(0, (good - bad) / it.a.length); }
+  if (it.type === 'cloze') { const f = v || []; return it.a.filter((w, i) => f[i] === w).length / it.a.length; }
+  if (it.type === 'classify') { const f = v || []; return it.rows.filter((r, i) => f[i] === r[1]).length / it.rows.length; }
+  if (it.type === 'order') { const f = v || []; return it.a.filter((w, i) => f[i] === w).length / it.a.length; }
+  if (it.type === 'num') { const x = parseFloat(String(v).replace(',', '.')); const t = it.ans(); return isFinite(x) && isFinite(t) && Math.abs(x - t) <= Math.abs(t) * it.tol + 1e-9 ? 1 : 0; }
+  if (it.type === 'lab') { let ok = 0; for (let t = 0; t < 3; t++) for (let i = 0; i < 6; i++) { const x = parseFloat(S.read[t][i]); if (isFinite(x) && Math.abs(x - readOf(t, i)) <= 0.15) ok++; } return ok / 18; }
+  if (it.type === 'upload') return S.ans.x0 ? 1 : 0;
+  return 0;
+}
+function answered(it) {
+  const v = S.ans[it.id];
+  if (it.type === 'mcq') return !!v;
+  if (it.type === 'multi') return v && v.length > 0;
+  if (it.type === 'cloze') return v && it.a.every((_, i) => v[i]);
+  if (it.type === 'classify') return v && it.rows.every((_, i) => v[i] != null);
+  if (it.type === 'order') return true;
+  if (it.type === 'num') return v != null && String(v).trim() !== '';
+  if (it.type === 'lab') return S.read.every(row => row.every(x => String(x ?? '').trim() !== ''));
+  if (it.type === 'upload') return !!S.ans.x0;
+}
+
+// ---------- totals (used by the page and by the server) ----------
+const TOTAL = ALL.reduce((a, it) => a + weight(it), 0);
+const stepPts = st => st.items.reduce((a, it) => a + weight(it), 0);
+const stepGot = st => st.items.reduce((a, it) => a + weight(it) * grade(it), 0);
+const totalGot = () => Math.round(ALL.reduce((a, it) => a + weight(it) * grade(it), 0));
+function wrongList() {
+  const out = [];
+  STEPS.forEach((st, si) => st.items.forEach(it => { const g = grade(it); if (g < 0.999) out.push({ st, si, it, q: typeof it.q === 'function' ? it.q() : it.q, got: g * weight(it), max: weight(it) }); }));
+  return out;
+}
+function scoreAll() {
+  return { grade: totalGot(), total: TOTAL, kTrue: P.k, readingsOk: Math.round(grade({ type: 'lab' }) * 18),
+    steps: STEPS.map(s => ({ tag: s.tag, title: s.title, got: +stepGot(s).toFixed(2), max: stepPts(s) })),
+    wrong: wrongList().map(w => ({ si: w.si, id: w.it.id, tag: w.st.tag, q: w.q, got: +w.got.toFixed(2), max: w.max })) };
+}
+
+</script>
+
+<script>
+// cloze with a word bank: drag on desktop, tap-to-place everywhere
+function clozeView(it, r, locked) {
+  const v = S.ans[it.id] || (S.ans[it.id] = []);
+  const words = shuffle([...it.a, ...it.extra], r);
+  let picked = null;
+  const bank = h('div', { class: 'bank' }), text = h('div', { class: 'cloze' + (it.ltr ? ' ltr' : ''), style: it.ltr ? 'text-align:left;font-family:var(--f-mono);font-size:18px' : '' });
+  const place = (i, w) => { const j = v.indexOf(w); if (j >= 0) v[j] = undefined; v[i] = w; picked = null; draw(); changed(); };
+  const draw = () => {
+    bank.replaceChildren(h('span', { class: 'lbl' }, locked ? 'صندوق الكلمات' : 'صندوق الكلمات: اسحب كلمة، أو اضغط عليها ثم اضغط على الفراغ'), ...words.map(w => { const used = v.includes(w);
+      const c = h('button', { dir: 'auto', class: 'chip' + (used ? ' used' : '') + (picked === w ? ' picked' : ''), draggable: !used && !locked ? 'true' : 'false', disabled: used || locked, onclick: () => { picked = picked === w ? null : w; draw(); } }, w);
+      c.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', w); }); return c; }));
+    text.replaceChildren(...it.parts.map(p => { if (typeof p === 'string') return p; const i = p;
+      let cls = 'blank'; if (locked) cls += v[i] === it.a[i] ? ' right' : ' wrong';
+      const b = h('button', { dir: 'auto', class: cls, disabled: locked, 'aria-label': 'فراغ ' + (i + 1), onclick: () => { if (picked) place(i, picked); else if (v[i]) { v[i] = undefined; draw(); changed(); } } }, v[i] || '');
+      b.addEventListener('dragover', e => { e.preventDefault(); b.classList.add('over'); }); b.addEventListener('dragleave', () => b.classList.remove('over'));
+      b.addEventListener('drop', e => { e.preventDefault(); place(i, e.dataTransfer.getData('text/plain')); });
+      return b; }));
+  };
+  draw();
+  return h('div', {}, text, bank);
+}
+
+// ---------- springs ----------
+function springPath(x, y0, y1, coils = 22, w = 16) {
+  const lead = 8, len = Math.max(y1 - y0 - 2 * lead, 4); let d = `M${x},${y0} L${x},${y0 + lead}`;
+  for (let i = 0; i < coils; i++) { const ya = y0 + lead + len * (i + 0.25) / coils, yb = y0 + lead + len * (i + 0.75) / coils; d += ` L${x + w},${ya} L${x - w},${yb}`; }
+  return d + ` L${x},${y1 - lead} L${x},${y1}`;
+}
+const NS = 'http://www.w3.org/2000/svg';
+const sv = (tag, a = {}) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); return e; };
+
+function handSpring() {
+  const svg = sv('svg', { viewBox: '0 0 300 230', width: '100%', style: 'max-width:420px;display:block;margin:6px auto', role: 'img', 'aria-label': 'نابض يسحبه الطالب' });
+  svg.append(sv('rect', { x: 20, y: 20, width: 260, height: 10, rx: 3, fill: 'var(--muted)' }));
+  const sp = sv('path', { fill: 'none', stroke: 'var(--spring)', 'stroke-width': 3, 'stroke-linejoin': 'round' });
+  const hand = sv('g'); hand.append(sv('circle', { cx: 0, cy: 0, r: 14, fill: 'var(--brass)' }), sv('rect', { x: -6, y: -26, width: 12, height: 16, rx: 4, fill: 'var(--brass)' }));
+  svg.append(sp, hand);
+  let pull = 0, shown = 0, raf = 0, t0 = 0, from = 0;
+  const L = p => 80 + p * 1.1;
+  const draw = y => { sp.setAttribute('d', springPath(150, 30, 30 + y, 14, 14)); hand.setAttribute('transform', `translate(150,${30 + y + 12})`); };
+  const slider = h('input', { type: 'range', min: 0, max: 100, value: 0, id: 'pull', style: 'width:100%;max-width:420px' });
+  const release = h('button', { class: 'btn ghost', style: 'padding:6px 14px' }, 'اترك النابض');
+  const animate = () => { const t = (performance.now() - t0) / 1000; const y = L(0) + (from - L(0)) * Math.exp(-t * 2.2) * Math.cos(t * 11); draw(y); if (t < 3) raf = requestAnimationFrame(animate); else draw(L(0)); };
+  slider.addEventListener('input', () => { cancelAnimationFrame(raf); pull = +slider.value; draw(L(pull)); });
+  release.addEventListener('click', () => { from = L(pull); slider.value = 0; pull = 0; t0 = performance.now(); cancelAnimationFrame(raf); if (matchMedia('(prefers-reduced-motion: reduce)').matches) draw(L(0)); else animate(); });
+  draw(L(0));
+  return h('div', {}, svg, h('div', { class: 'row', style: 'justify-content:center' }, h('label', { for: 'pull', class: 'hint' }, 'قوة السحب'), slider, release));
+}
+
+// ---------- the lab bench ----------
+function labView(locked) {
+  const SC = 11, TOP = 40, RX = 200, SX = 150; // px per cm, ruler zero y, ruler x, spring x
+  const svg = sv('svg', { viewBox: '0 0 280 520', width: '250', style: 'max-width:100%;height:auto', role: 'img', 'aria-label': 'نابض معلّق بجانب مسطرة' });
+  svg.append(sv('rect', { x: 18, y: 500, width: 160, height: 10, rx: 3, fill: 'var(--muted)' }), sv('rect', { x: 26, y: 18, width: 8, height: 484, fill: 'var(--muted)' }), sv('rect', { x: 26, y: 18, width: 140, height: 8, fill: 'var(--muted)' }), sv('rect', { x: SX - 4, y: 26, width: 8, height: 14, fill: 'var(--muted)' }));
+  // ruler 0–40 cm
+  const ru = sv('g'); ru.append(sv('rect', { x: RX, y: TOP - 8, width: 52, height: 40 * SC + 16, fill: 'var(--rulerbg)', stroke: 'var(--brass)', 'stroke-width': 1 }));
+  for (let mm = 0; mm <= 400; mm++) { const y = TOP + mm * SC / 10, big = mm % 10 === 0, mid = mm % 5 === 0;
+    ru.append(sv('line', { x1: RX, x2: RX + (big ? 16 : mid ? 10 : 6), y1: y, y2: y, stroke: 'var(--ink)', 'stroke-width': big ? 1.1 : 0.5 }));
+    if (big && (mm / 10) % 2 === 0) { const tx = sv('text', { x: RX + 34, y: y + 4, 'font-size': 10, 'text-anchor': 'middle', fill: 'var(--ink)', 'font-family': 'IBM Plex Mono, monospace' }); tx.textContent = mm / 10; ru.append(tx); } }
+  svg.append(ru);
+  const sp = sv('path', { fill: 'none', stroke: 'var(--spring)', 'stroke-width': 2.4, 'stroke-linejoin': 'round' });
+  const ptr = sv('line', { stroke: '#D23B3B', 'stroke-width': 1.6 });
+  const hang = sv('g'); svg.append(sp, hang, ptr);
+  // magnifier
+  const mag = sv('svg', { viewBox: '0 0 150 210', width: '150', role: 'img', 'aria-label': 'عدسة مكبّرة على المسطرة' });
+  const magG = sv('g'); mag.append(sv('rect', { x: 0, y: 0, width: 150, height: 210, rx: 12, fill: 'var(--rulerbg)', stroke: 'var(--brass)', 'stroke-width': 2 }), magG);
+  const MZ = 60; // px per cm in magnifier
+  const drawMag = L => { magG.replaceChildren(); const c = 105;
+    for (let mm = Math.floor((L - 2) * 10); mm <= Math.ceil((L + 2) * 10); mm++) { if (mm < 0) continue; const y = c + (mm / 10 - L) * MZ; if (y < 4 || y > 206) continue; const big = mm % 10 === 0, mid = mm % 5 === 0;
+      magG.append(sv('line', { x1: 0, x2: big ? 46 : mid ? 32 : 20, y1: y, y2: y, stroke: 'var(--ink)', 'stroke-width': big ? 2 : 1 }));
+      if (big) { const t = sv('text', { x: 66, y: y + 6, 'font-size': 18, fill: 'var(--ink)', 'font-family': 'IBM Plex Mono, monospace' }); t.textContent = mm / 10; magG.append(t); } }
+    magG.append(sv('line', { x1: 0, x2: 150, y1: c, y2: c, stroke: '#D23B3B', 'stroke-width': 2 })); };
+  let n = 0, trial = 0, shownL = 0, raf = 0;
+  const draw = L => { shownL = L; const yb = TOP + L * SC; sp.setAttribute('d', springPath(SX, 40, yb, 26, 12));
+    ptr.setAttribute('x1', SX - 6); ptr.setAttribute('x2', RX + 18); ptr.setAttribute('y1', yb); ptr.setAttribute('y2', yb);
+    hang.replaceChildren(sv('line', { x1: SX, x2: SX, y1: yb, y2: yb + 12 + n * 7, stroke: 'var(--muted)', 'stroke-width': 2 }));
+    for (let j = 0; j < n; j++) hang.append(sv('rect', { x: SX - 18, y: yb + 10 + j * 7, width: 36, height: 6, rx: 2, fill: 'var(--brass)' }));
+    drawMag(L); };
+  const state = h('div', { class: 'state' });
+  const setState = () => { state.replaceChildren('المحاولة ', h('b', {}, String(trial + 1)), ' · الكتلة المعلّقة ', h('b', {}, MASSES[n] + ' g'), ' · سجّل القراءة في الخانة المضيئة'); hl(); };
+  const go = (newN) => { const from = shownL; n = newN; const to = trueL(trial, n); setState(); cancelAnimationFrame(raf);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { draw(to); return; }
+    const t0 = performance.now(); const step = () => { const t = (performance.now() - t0) / 1000; const L = to + (from - to) * Math.exp(-t * 1.6) * Math.cos(t * 9); draw(t < 3.2 ? L : to); if (t < 3.2) raf = requestAnimationFrame(step); }; step(); };
+  const add = h('button', { class: 'btn', onclick: () => n < 5 && go(n + 1) }, 'علّق ثقلاً 50 g');
+  const rem = h('button', { class: 'btn ghost', onclick: () => n > 0 && go(n - 1) }, 'أنزل ثقلاً');
+  const tbtn = [0, 1, 2].map(t => h('button', { class: t === 0 ? 'sel' : '', onclick: () => { trial = t; tbtn.forEach((b, i) => b.className = i === t ? 'sel' : ''); n = 0; go(0); } }, 'محاولة ' + (t + 1)));
+  // table
+  const inputs = [0, 1, 2].map(t => MASSES.map((m, i) => { const inp = h('input', { type: 'text', inputmode: 'decimal', id: `r${t}${i}`, value: S.read[t][i] ?? '', disabled: locked, 'aria-label': `القراءة: محاولة ${t + 1}، كتلة ${m} غرام` });
+    if (locked) { const x = parseFloat(inp.value); inp.className = isFinite(x) && Math.abs(x - readOf(t, i)) <= 0.15 ? 'right' : 'wrong'; }
+    inp.addEventListener('input', () => { S.read[t][i] = inp.value.replace(',', '.'); changed(); }); return inp; }));
+  const hl = () => inputs.forEach((row, t) => row.forEach((inp, i) => inp.classList.toggle('now', !locked && t === trial && i === n)));
+  const table = h('div', { class: 'tblw' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'الكتلة m (g)'), h('th', {}, 'L محاولة 1 (cm)'), h('th', {}, 'L محاولة 2 (cm)'), h('th', {}, 'L محاولة 3 (cm)'))),
+    h('tbody', {}, ...MASSES.map((m, i) => h('tr', {}, h('td', {}, String(m)), ...[0, 1, 2].map(t => h('td', {}, inputs[t][i])))))));
+  const out = h('div', { class: 'lab' },
+    h('div', {}, h('div', { class: 'bench' }, svg, h('div', { class: 'mag' }, mag, h('div', { class: 'cap' }, 'العدسة المكبّرة: الخط الأحمر هو المؤشر')))),
+    h('div', { style: 'min-width:0' }, locked ? null : h('div', { class: 'seg trials', role: 'group', 'aria-label': 'رقم المحاولة' }, ...tbtn), locked ? null : h('div', { class: 'ctl' }, add, rem), locked ? null : state, table,
+      locked ? h('p', { class: 'fb' }, `القراءات الصحيحة: ${Math.round(grade({ type: 'lab' }) * 18)} من 18 (يُقبل فرق حتى 1.5 mm).`) : null));
+  n = 0; draw(trueL(0, 0)); setState();
+  labCtl = { stop: () => cancelAnimationFrame(raf) };
+  return out;
+}
+
+
+function uploadView(locked) {
+  const img = h('img', { alt: 'الرسم البياني الذي رفعه الطالب', hidden: true });
+  if (S.graph) { img.src = S.graph; img.hidden = false; }
+  const inp = h('input', { type: 'file', accept: 'image/*', id: 'up', disabled: locked });
+  const info = h('span', { class: 'hint' }, S.ans.x0 ? 'تم رفع: ' + S.ans.x0 : 'صورة PNG أو JPG');
+  inp.addEventListener('change', () => { const f = inp.files[0]; if (!f) return; const fr = new FileReader();
+    fr.onload = () => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'), s = Math.min(1, 700 / im.width); c.width = im.width * s; c.height = im.height * s; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      S.graph = c.toDataURL('image/jpeg', 0.7); img.src = S.graph; img.hidden = false; S.ans.x0 = f.name; info.textContent = 'تم رفع: ' + f.name; changed(); }; im.src = fr.result; }; fr.readAsDataURL(f); });
+  return h('div', { class: 'up' }, locked ? null : inp, info, img);
+}
+
+
+
+// ---------- server bridge ----------
+// ===== رابط الخادم (Google Apps Script) =====
+// إذا نشرتِ الخادم من مشروع آخر، ضعي هنا الرابط الجديد الذي ينتهي بـ /exec
+const API_URL = 'https://script.google.com/macros/s/AKfycbwbjK5_8iSS5mcYsdOEfVeptrI9BvIpzTb26o9Hj01vwwc6BF8QdxycreD1UKMVPkwg/exec';
+const SITE_URL = location.protocol.startsWith('http') ? location.origin + location.pathname : '';
+async function call(fn, ...args) {
+  let res, data;
+  try { res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }) }); }
+  catch (e) { throw new Error('لا يوجد اتصال بالخادم. تأكد من الإنترنت وحاول مرة أخرى.'); }
+  try { data = await res.json(); } catch (e) { throw new Error('الخادم لم يردّ كما يجب. تأكدي أن الخادم منشور بإصدار جديد وأن الوصول «כולם».'); }
+  if (!data || !data.ok) throw new Error((data && data.error) || 'حدث خطأ في الخادم.');
+  return data.result;
+}
+const errText = e => String((e && e.message) || e).replace(/^Error:\s*/, '').replace(/^Exception:\s*/, '');
+const fmtCode = s => { const x = String(s).toUpperCase().replace(/[^A-Z0-9]/g, ''); return x.length === 6 ? x.slice(0, 3) + '-' + x.slice(3) : x; };
+const save = () => S && S.code && store.set('springlab:' + S.code, S);
+const app = $('#app');
+const ptsWord = n => n === 1 ? 'علامة واحدة' : n === 2 ? 'علامتان' : n <= 10 ? n + ' علامات' : n + ' علامة';
+const dt = iso => iso ? new Date(iso).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+function busy(btn, on, label) { if (!btn) return; if (on) { btn.dataset.l = btn.textContent; btn.textContent = label || 'لحظة…'; btn.disabled = true; } else { btn.textContent = btn.dataset.l || btn.textContent; btn.disabled = false; } }
+function downloadText(filename, text, mime) {
+  try { const a = h('a', { href: URL.createObjectURL(new Blob([text], { type: mime })), download: filename }); document.body.append(a); a.click(); a.remove(); return true; } catch { return false; }
+}
+function copyBox(text) { // visible, selectable fallback for copying
+  const ta = h('textarea', { readonly: true, style: 'width:100%;min-height:120px;direction:ltr;font-family:var(--f-mono);font-size:12px' }); ta.value = text;
+  setTimeout(() => { ta.focus(); ta.select(); }, 30); return ta;
+}
+async function copyText(text, msgEl, holder) {
+  try { await navigator.clipboard.writeText(text); msgEl.textContent = 'تم النسخ. الصق في Excel في الخلية A1.'; }
+  catch { holder.replaceChildren(copyBox(text)); msgEl.textContent = 'النص محدّد في المربع: اضغط Ctrl+C لنسخه.'; }
+}
+
+// ---------- home ----------
+function rail() {
+  const r = $('#rail'); r.innerHTML = '';
+  if (!S || !['step', 'submit'].includes(app.dataset.view)) return;
+  STEPS.forEach((s, i) => r.append(h('button', { class: 'rl ' + (i === S.step && app.dataset.view === 'step' ? 'cur' : s.items.every(answered) ? 'done' : ''), title: s.tag + ': ' + s.title, 'aria-label': s.tag,
+    onclick: () => { if (S.submitted) return; S.step = i; stepView(); } })));
+}
+function setWho(t) { $('#who').textContent = t || ''; $('#who').hidden = !t; }
+
+function homeView() {
+  app.dataset.view = 'home'; S = null; P = null; setWho(''); rail();
+  const codeIn = h('input', { type: 'text', id: 'scode', placeholder: '7QX-K4F', autocomplete: 'off', style: 'direction:ltr;text-align:center;font-family:var(--f-mono);font-size:20px;letter-spacing:.1em;width:100%;max-width:260px' });
+  const err = h('div', { class: 'err' });
+  const go = h('button', { class: 'btn brass' }, 'ادخل إلى الاختبار');
+  const start = async () => { const code = fmtCode(codeIn.value); err.textContent = '';
+    if (!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)) { err.textContent = 'رمز الطالب مكوّن من 6 خانات، مثل 7QX-K4F.'; return; }
+    busy(go, true, 'جارٍ التحقق…');
+    try { const r = await call('studentStart', code); busy(go, false);
+      if (r.status === 'submitted') return lockedOut(code, r.result);
+      beginExam(code, r); } catch (e) { busy(go, false); err.textContent = errText(e); } };
+  go.onclick = start; codeIn.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+  app.replaceChildren(
+    h('section', { class: 'card' },
+      h('div', { class: 'eyebrow' }, 'اختبار محوسب · فيزياء · 100 علامة'),
+      h('h1', {}, 'كم ثابت نابضك؟'),
+      h('p', {}, 'في هذا الاختبار لكل طالب نابض خاص به، بثابت مختلف عن نوابض زملائه. ستمرّ على خطوات البحث العلمي العشر: من الملاحظة، إلى التجربة والقياس، إلى الرسم البياني في Excel واستخراج ثابت النابض.')),
+    h('div', { class: 'two' },
+      h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'للطالب'), h('h2', {}, 'ادخل برمزك'),
+        h('p', { class: 'hint' }, 'اكتب الرمز الذي أعطاك إياه معلمك. الرمز يُستعمل لتسليم واحد فقط.'),
+        h('label', { for: 'scode', class: 'lbl' }, 'رمز الطالب'), codeIn, err, h('div', { class: 'row', style: 'margin-top:14px' }, go)),
+      h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'للمعلم'), h('h2', {}, 'صفّي وعلامات طلابي'),
+        h('p', { class: 'hint' }, 'سجّل صفاً جديداً لتحصل على رموز لطلابك، أو ادخل إلى لوحة صفك لترى العلامات.'),
+        h('div', { class: 'row', style: 'margin-top:14px' }, h('button', { class: 'btn', onclick: registerView }, 'تسجيل صف جديد'), h('button', { class: 'btn ghost', onclick: () => loginView() }, 'دخول إلى لوحة الصف')))));
+  setTimeout(() => codeIn.focus(), 50);
+}
+
+// ---------- student ----------
+function beginExam(code, info) {
+  P = makeParams(code);
+  S = store.get('springlab:' + code) || { code, step: 0, ans: {}, read: [0, 1, 2].map(() => Array(6).fill('')), submitted: false };
+  S.code = code; S.label = info.label || S.label || ''; S.seat = info.seat || S.seat;
+  setWho('رمز ' + code + (S.label ? ' · ' + S.label : ''));
+  if (S.submitted && S.result) return resultView();
+  S.submitted = false;
+  if (S.step === 0 && !S.ans.o1) return introView();
+  stepView();
+}
+function introView() {
+  app.dataset.view = 'intro'; rail();
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, S.label ? 'الصف: ' + S.label : 'تعليمات'), h('h2', {}, 'قبل أن تبدأ'),
+    h('ul', { class: 'steps' },
+      h('li', {}, 'الاختبار من 100 علامة، موزّعة على 11 قسماً. بجانب كل سؤال تظهر علاماته.'),
+      h('li', {}, 'تستطيع التنقل بين الأقسام وتعديل إجاباتك حتى تضغط «إنهاء وتسليم».'),
+      h('li', {}, 'إجاباتك تُحفظ على هذا الجهاز. إذا انقطعت، ادخل برمزك من نفس الجهاز لتكمل.'),
+      h('li', {}, 'التسليم مرة واحدة فقط. بعده تظهر علامتك والأسئلة التي أخطأت فيها.'),
+      h('li', {}, 'ستحتاج برنامج Excel في القسم 9 لرسم الرسم البياني.')),
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: homeView }, 'خروج'), h('button', { class: 'btn brass', onclick: () => stepView() }, 'ابدأ الاختبار'))));
+}
+function lockedOut(code, r) {
+  app.dataset.view = 'locked'; S = null; setWho('رمز ' + code); rail();
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'تم التسليم مسبقاً'), h('h2', {}, 'هذا الرمز سُلّم به الاختبار'),
+    h('p', {}, 'تاريخ التسليم: ', dt(r.submittedAt), '. التسليم مرة واحدة فقط.'),
+    h('div', { class: 'grade' }, h('div', { class: 'big' }, String(r.grade)), h('div', {}, 'العلامة من 100')),
+    r.wrong && r.wrong.length ? h('div', {}, h('h3', {}, `الأسئلة التي أخطأت فيها (${r.wrong.length})`), h('ul', { class: 'wrongs' }, ...r.wrong.map(w => h('li', {}, h('b', {}, w.tag + ': '), w.q, h('span', { class: 'hint' }, ` (${fmt(w.got, 1)} من ${w.max})`))))) : null,
+    h('div', { class: 'actions' }, h('span'), h('button', { class: 'btn ghost', onclick: homeView }, 'رجوع'))));
+}
+
+let labCtl = null, cur = null;
+function stepView() {
+  if (labCtl) { labCtl.stop(); labCtl = null; }
+  app.dataset.view = 'step'; save();
+  const st = STEPS[S.step], locked = !!S.submitted;
+  const card = h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, st.tag + ' من خطوات البحث العلمي · ' + ptsWord(stepPts(st))), h('h2', {}, st.title), ...st.intro());
+  if (st.excel) card.append(excelBlock(locked));
+  let n = 0;
+  for (const it of st.items) card.append(itemView(it, ++n, locked));
+  const last = S.step === STEPS.length - 1;
+  const back = h('button', { class: 'btn ghost', disabled: S.step === 0, onclick: () => { S.step--; stepView(); window.scrollTo({ top: 0 }); } }, 'السابق');
+  const next = h('button', { class: 'btn' + (last && !locked ? ' brass' : ''), onclick: () => { if (!last) { S.step++; stepView(); window.scrollTo({ top: 0 }); } else locked ? resultView() : submitView(); } },
+    last ? (locked ? 'العودة إلى النتيجة' : 'إنهاء وتسليم') : 'الخطوة التالية');
+  const hint = h('span', { class: 'hint' });
+  card._refresh = () => { const left = st.items.filter(it => !answered(it)).length; hint.textContent = locked ? `علاماتك في هذا القسم: ${fmt(stepGot(st), 1)} من ${stepPts(st)}` : left ? `بقي ${left} ${left === 1 ? 'سؤال' : 'أسئلة'} دون إجابة في هذا القسم` : 'أجبت عن كل أسئلة هذا القسم'; rail(); };
+  card.append(h('div', { class: 'actions' }, back, hint, next));
+  if (locked) card.prepend(h('div', { class: 'note', style: 'margin-top:0' }, 'وضع المراجعة: الإجابات مقفلة. الإجابة الخاطئة معلّمة بالأحمر.', h('div', { class: 'row' }, h('button', { class: 'btn ghost', style: 'padding:5px 12px', onclick: resultView }, 'العودة إلى النتيجة'))));
+  app.replaceChildren(card);
+  cur = card; card._refresh();
+}
+const changed = () => { save(); cur && cur._refresh && cur._refresh(); };
+function markEl(it) { const g = grade(it); return h('span', { class: 'mark ' + (g >= 0.999 ? 'ok' : g > 0 ? 'part' : 'bad') }, g >= 0.999 ? '✓ ' + fmt(weight(it), 1) : g > 0 ? `${fmt(g * weight(it), 1)} من ${weight(it)}` : '✗ 0'); }
+
+function itemView(it, n, locked) {
+  const qtext = typeof it.q === 'function' ? it.q() : it.q;
+  const box = h('div', { class: 'q', id: 'q-' + it.id }, h('div', { class: 'qh' }, h('span', { class: 'qn' }, String(n)), h('span', {}, qtext), locked ? markEl(it) : h('span', { class: 'pts' }, ptsWord(weight(it)))));
+  const r = rngFrom(P.seed ^ fnv(it.id));
+  if (it.type === 'mcq' || it.type === 'multi') {
+    const multi = it.type === 'multi', opts = shuffle([...(multi ? it.a : [it.a]), ...it.d], r);
+    const wrap = h('div', { class: 'opts', role: multi ? 'group' : 'radiogroup' });
+    const draw = () => { wrap.replaceChildren(...opts.map(o => { const v = S.ans[it.id];
+      const sel = multi ? (v || []).includes(o) : v === o; const isA = multi ? it.a.includes(o) : o === it.a;
+      let cls = 'opt' + (multi ? ' multi' : '') + (sel ? ' sel' : '');
+      if (locked && sel) cls += isA ? ' right' : ' wrong';
+      return h('button', { class: cls, disabled: locked, 'aria-pressed': sel ? 'true' : 'false', onclick: () => {
+        if (multi) { const s = new Set(S.ans[it.id] || []); s.has(o) ? s.delete(o) : s.add(o); S.ans[it.id] = [...s]; } else S.ans[it.id] = o; draw(); changed(); } }, h('span', { class: 'dot' }), h('span', { dir: 'auto' }, o)); })); };
+    draw(); box.append(wrap);
+    if (multi && !locked) box.append(h('div', { class: 'fb' }, 'قد يكون أكثر من جواب صحيح. كل اختيار خاطئ يُنقص من العلامة.'));
+  }
+  if (it.type === 'cloze') box.append(clozeView(it, r, locked));
+  if (it.type === 'classify') {
+    const wrap = h('div', { class: 'cls' }); const v = S.ans[it.id] || (S.ans[it.id] = []);
+    const rows = shuffle(it.rows.map((row, i) => [row, i]), r);
+    const draw = () => wrap.replaceChildren(...rows.map(([row, i]) => h('div', { class: 'clsrow' }, h('span', {}, row[0]),
+      h('div', { class: 'seg' }, ...it.cats.map((c, ci) => { let cls = v[i] === ci ? 'sel' : ''; if (locked && v[i] === ci) cls = ci === row[1] ? 'right' : 'wrong';
+        return h('button', { class: cls, disabled: locked, onclick: () => { v[i] = ci; draw(); changed(); } }, c); })))));
+    draw(); box.append(wrap);
+  }
+  if (it.type === 'order') {
+    if (!S.ans[it.id]) { let o; do { o = shuffle(it.a, r); } while (o.every((x, i) => x === it.a[i])); S.ans[it.id] = o; }
+    const ol = h('ol', { class: 'order' });
+    const draw = () => { const v = S.ans[it.id]; ol.replaceChildren(...v.map((t, i) => h('li', { class: locked ? (t === it.a[i] ? 'right' : 'wrong') : '' }, h('span', { class: 'n' }, String(i + 1)), h('span', { class: 't' }, t),
+      locked ? null : h('span', { class: 'mv' }, h('button', { 'aria-label': 'إلى الأعلى', disabled: i === 0, onclick: () => { [v[i - 1], v[i]] = [v[i], v[i - 1]]; draw(); changed(); } }, '▲'),
+        h('button', { 'aria-label': 'إلى الأسفل', disabled: i === v.length - 1, onclick: () => { [v[i + 1], v[i]] = [v[i], v[i + 1]]; draw(); changed(); } }, '▼'))))); };
+    draw(); box.append(ol);
+    if (!locked) box.append(h('div', { class: 'fb' }, 'تُحسب العلامة حسب عدد الخطوات الموجودة في مكانها الصحيح.'));
+  }
+  if (it.type === 'num') {
+    const inp = h('input', { type: 'text', inputmode: 'decimal', id: 'in-' + it.id, value: S.ans[it.id] ?? '', disabled: locked, class: locked ? (grade(it) ? 'right' : 'wrong') : '' });
+    inp.addEventListener('input', () => { S.ans[it.id] = inp.value; changed(); });
+    box.append(h('div', { class: 'num' }, inp, h('span', { class: 'unit' }, it.unit)));
+  }
+  if (it.type === 'lab') box.append(labView(locked));
+  if (it.type === 'upload') box.append(uploadView(locked));
+  return box;
+}
+
+function submitView() {
+  app.dataset.view = 'submit'; rail();
+  const missing = STEPS.map((s, i) => ({ s, i, left: s.items.filter(it => !answered(it)).length })).filter(x => x.left);
+  const err = h('div', { class: 'err' });
+  const ok = h('button', { class: 'btn brass', id: 'confirm' }, 'نعم، سلّم الاختبار');
+  ok.onclick = async () => { busy(ok, true, 'جارٍ التسليم…'); err.textContent = '';
+    try { const res = await call('studentSubmit', S.code, { ans: S.ans, read: S.read, graph: S.graph || '' });
+      S.submitted = true; S.result = res; save(); resultView(); }
+    catch (e) { busy(ok, false); err.textContent = 'لم يتم التسليم: ' + errText(e) + ' تأكد من الاتصال بالإنترنت وحاول مرة أخرى. إجاباتك محفوظة.'; } };
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'قبل التسليم'), h('h2', {}, 'هل أنت متأكد أنك تريد تسليم الاختبار؟'),
+    missing.length ? h('div', { class: 'note' }, h('b', {}, 'ما زالت هناك أسئلة دون إجابة، وستحصل فيها على صفر:'),
+      h('ul', {}, ...missing.map(x => h('li', {}, h('a', { href: '#', onclick: e => { e.preventDefault(); S.step = x.i; stepView(); } }, `${x.s.tag}: ${x.s.title}`), ` (${x.left})`))))
+      : h('div', { class: 'info' }, 'أجبت عن كل الأسئلة.'),
+    h('p', {}, 'بعد التسليم لا يمكن تغيير الإجابات، والتسليم مرة واحدة فقط.'), err,
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: () => stepView() }, 'رجوع إلى الأسئلة'), ok)));
+}
+
+function resultView() {
+  app.dataset.view = 'result'; rail();
+  const r = S.result;
+  const tb = h('div', { class: 'tblw' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'القسم'), h('th', {}, 'العلامة'))),
+    h('tbody', {}, ...r.steps.map(s => h('tr', {}, h('td', { style: 'text-align:start' }, s.tag + ' – ' + s.title), h('td', {}, `${fmt(s.got, 1)} من ${s.max}`))),
+      h('tr', {}, h('th', { style: 'text-align:start' }, 'المجموع'), h('th', {}, `${r.grade} من ${r.total}`)))));
+  const open = w => { S.step = w.si; stepView(); setTimeout(() => { const el = document.getElementById('q-' + w.id); el && el.scrollIntoView({ block: 'center' }); }, 50); };
+  app.replaceChildren(h('section', { class: 'card' },
+    h('div', { class: 'eyebrow' }, 'تم تسليم الاختبار · وصلت علامتك إلى المعلم'), h('h2', {}, 'نتيجتك'),
+    h('div', { class: 'grade' }, h('div', { class: 'big' }, String(r.grade)), h('div', {}, h('div', {}, 'العلامة من 100'), h('div', { class: 'hint' }, dt(r.submittedAt)))),
+    h('p', {}, 'ثابت نابضك الحقيقي: ', h('span', { class: 'law' }, r.kTrue + ' N/m'), ' · القيمة التي حسبتها: ', h('span', { class: 'law' }, (r.kStudent || '—') + ' N/m')),
+    h('h3', {}, 'نقاط قوتك وضعفك'), profileView(r.steps, 'الطالب'),
+    h('h3', {}, r.wrong.length ? `الأسئلة التي أخطأت فيها (${r.wrong.length})` : 'لا توجد أسئلة خاطئة. أحسنت!'),
+    r.wrong.length ? h('ul', { class: 'wrongs' }, ...r.wrong.map(w => h('li', {}, h('a', { href: '#', onclick: e => { e.preventDefault(); open(w); } }, w.tag + ': ', w.q),
+      h('span', { class: 'hint' }, w.got > 0 ? ` (حصلت على ${fmt(w.got, 1)} من ${w.max})` : ` (0 من ${w.max})`)))) : null,
+    r.wrong.length ? h('p', { class: 'hint' }, 'اضغط على سؤال لتراه مع إجابتك.') : null,
+    tb,
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: () => { S.step = 0; stepView(); } }, 'راجع كل الأسئلة'), h('button', { class: 'btn ghost', onclick: homeView }, 'خروج'))));
+}
+
+// ---------- Excel step ----------
+function excelBlock(locked) {
+  const d = myData();
+  const head = ['الكتلة m (g)', 'القوة F (N)', 'ΔL محاولة 1 (cm)', 'ΔL محاولة 2 (cm)', 'ΔL محاولة 3 (cm)', 'معدل ΔL (cm)', 'معدل ΔL (m)'];
+  const rows = d.rows.map(r => [r.m, r.F, ...r.dl.map(x => isFinite(x) ? +x.toFixed(2) : ''), isFinite(r.avg) ? +r.avg.toFixed(2) : '', isFinite(r.avg) ? +(r.avg / 100).toFixed(4) : '']);
+  const msg = h('div', { class: 'fb' }), holder = h('div');
+  const tsv = [head, ...rows].map(r => r.join('\t')).join('\n');
+  const dl = h('button', { class: 'btn brass', onclick: () => {
+    try { const ws = XLSX.utils.aoa_to_sheet([head, ...rows]); ws['!cols'] = head.map(() => ({ wch: 17 })); const wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
+      XLSX.utils.book_append_sheet(wb, ws, 'نتائجي'); XLSX.writeFile(wb, 'نتائج النابض ' + S.code + '.xlsx'); msg.textContent = 'إذا لم يبدأ التنزيل، استعمل زر النسخ.'; }
+    catch { msg.textContent = 'تعذّر إنشاء الملف. استعمل زر النسخ.'; } } }, 'نزّل ملف Excel بنتائجك');
+  if (typeof XLSX === 'undefined') dl.hidden = true;
+  const copy = h('button', { class: 'btn ghost', onclick: () => copyText(tsv, msg, holder) }, 'انسخ النتائج للصقها في Excel');
+  const tbl = h('div', { class: 'tblw' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, ...head.map(x => h('th', {}, x)))), h('tbody', {}, ...rows.map(r => h('tr', {}, ...r.map(x => h('td', {}, String(x))))))));
+  return h('div', {},
+    h('p', {}, 'هذه نتائجك من التجربة بعد حساب القوة والاستطالة. انقلها إلى Excel وأنشئ رسماً بيانياً:'), tbl,
+    locked ? null : h('div', { class: 'row', style: 'margin:12px 0' }, dl, copy), msg, holder,
+    h('div', { class: 'info' }, h('b', {}, 'خطوات الرسم في Excel'),
+      h('ol', { class: 'steps' },
+        h('li', {}, 'حدّد عمود «القوة F (N)»، ثم اضغط Ctrl وحدّد عمود «معدل ΔL (m)».'),
+        h('li', {}, 'إدراج ← مخطط مبعثر (Scatter) بالنقاط فقط.'),
+        h('li', {}, 'تأكد أن القوة على المحور الأفقي والاستطالة على المحور العمودي، وأضف عنواناً لكل محور مع الوحدة.'),
+        h('li', {}, 'اضغط بالزر الأيمن على النقاط ← إضافة خط اتجاه (Trendline) ← خطي، وفعّل «عرض المعادلة على المخطط».'),
+        h('li', {}, 'خذ صورة للمخطط (أو احفظه كصورة) وارفعها هنا.'))));
+}
+
+// ---------- teacher: register ----------
+function registerView() {
+  app.dataset.view = 'treg'; setWho(''); rail();
+  const em = h('input', { type: 'email', id: 'tem', placeholder: 'name@example.com', style: 'direction:ltr;width:100%;max-width:360px', autocomplete: 'email' });
+  const lb = h('input', { type: 'text', id: 'tlb', placeholder: 'مثال: سابع أ – فيزياء', maxlength: 60, style: 'width:100%;max-width:360px' });
+  const nn = h('input', { type: 'number', id: 'tnn', min: 1, max: 60, value: 30, style: 'width:110px' });
+  const err = h('div', { class: 'err' });
+  const go = h('button', { class: 'btn brass' }, 'أنشئ الصف والرموز');
+  go.onclick = async () => { err.textContent = '';
+    const email = em.value.trim(), label = lb.value.trim(), n = Math.round(+nn.value);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'اكتب بريداً إلكترونياً صحيحاً.'; return; }
+    if (!label) { err.textContent = 'اكتب اسماً للصف.'; return; }
+    if (!(n >= 1 && n <= 60)) { err.textContent = 'عدد الطلاب بين 1 و60.'; return; }
+    busy(go, true, 'جارٍ الإنشاء…');
+    try { const r = await call('registerTeacher', email, label, n, SITE_URL); classCreatedView(r); } catch (e) { busy(go, false); err.textContent = errText(e); } };
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'للمعلم'), h('h2', {}, 'تسجيل صف جديد'),
+    h('p', {}, 'ستحصل على رمز للصف، ومفتاح معلم سرّي، ورمز لكل طالب. لا نطلب أسماء الطلاب: أنت وحدك تعرف صاحب كل رمز.'),
+    h('label', { for: 'tem', class: 'lbl' }, 'بريدك الإلكتروني'), em, h('div', { class: 'hint' }, 'نرسل إليه رمز الصف والمفتاح والرموز، لتستعيدها إذا نسيتها.'),
+    h('label', { for: 'tlb', class: 'lbl' }, 'اسم الصف (يراه الطلاب)'), lb,
+    h('label', { for: 'tnn', class: 'lbl' }, 'عدد الطلاب'), nn, err,
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: homeView }, 'رجوع'), go)));
+}
+function codesTable(codes) {
+  return h('div', { class: 'tblw' }, h('table', { class: 'data codes' }, h('thead', {}, h('tr', {}, h('th', {}, 'رقم'), h('th', {}, 'رمز الطالب'), h('th', {}, 'اسم الطالب (يكتبه المعلم)'))),
+    h('tbody', {}, ...codes.map(c => h('tr', {}, h('td', {}, String(c.seat)), h('td', { class: 'ltr', style: 'font-family:var(--f-mono);font-size:16px;letter-spacing:.08em' }, c.code), h('td', { style: 'min-width:180px' }, ''))))));
+}
+function classCreatedView(r) {
+  app.dataset.view = 'tnew'; rail();
+  const msg = h('div', { class: 'fb' }), holder = h('div');
+  const list = r.codes.map(c => c.seat + '\t' + c.code).join('\n');
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'تم إنشاء الصف'), h('h2', {}, r.label),
+    h('div', { class: 'keys' },
+      h('div', {}, h('div', { class: 'hint' }, 'رمز الصف'), h('div', { class: 'code' }, r.classCode)),
+      h('div', {}, h('div', { class: 'hint' }, 'مفتاح المعلم (سرّي)'), h('div', { class: 'code' }, r.teacherKey))),
+    h('div', { class: 'note' }, h('b', {}, 'احفظ رمز الصف ومفتاح المعلم. '), 'تحتاجهما للدخول إلى لوحة صفك. ', r.emailed ? 'أرسلناهما مع الرموز إلى بريدك.' : 'لم نتمكن من إرسال البريد، فاحفظهما الآن.', ' لا تعطِ المفتاح للطلاب.'),
+    h('h3', {}, 'رموز الطلاب'),
+    h('p', { class: 'hint' }, 'نصيحة: أعطِ الطالب الذي رقمه 7 في دفتر العلامات الرمز رقم 7، فتعرف صاحب كل رمز دون كتابة أسماء.'),
+    codesTable(r.codes),
+    h('div', { class: 'row noprint', style: 'margin-top:12px' }, h('button', { class: 'btn ghost', onclick: () => window.print() }, 'اطبع القائمة'), h('button', { class: 'btn ghost', onclick: () => copyText(list, msg, holder) }, 'انسخ الرموز')), msg, holder,
+    h('div', { class: 'actions noprint' }, h('button', { class: 'btn ghost', onclick: homeView }, 'الصفحة الرئيسية'), h('button', { class: 'btn', onclick: () => openDashboard(r.classCode, r.teacherKey) }, 'إلى لوحة الصف'))));
+}
+
+// ---------- teacher: login and dashboard ----------
+function loginView(pre) {
+  app.dataset.view = 'tlogin'; setWho(''); rail();
+  const cc = h('input', { type: 'text', id: 'tcc', placeholder: 'رمز الصف', value: pre || '', autocomplete: 'off', style: 'direction:ltr;text-align:center;font-family:var(--f-mono);width:200px' });
+  const kk = h('input', { type: 'password', id: 'tkk', placeholder: 'مفتاح المعلم', autocomplete: 'off', style: 'direction:ltr;text-align:center;font-family:var(--f-mono);width:200px' });
+  const err = h('div', { class: 'err' });
+  const go = h('button', { class: 'btn' }, 'ادخل');
+  const enter = async () => { err.textContent = ''; busy(go, true, 'جارٍ الدخول…'); try { await openDashboard(cc.value, kk.value); } catch (e) { busy(go, false); err.textContent = errText(e); } };
+  go.onclick = enter; kk.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+  const fe = h('input', { type: 'email', id: 'tfe', placeholder: 'name@example.com', style: 'direction:ltr;width:240px' }), fm = h('div', { class: 'fb' });
+  const fb = h('button', { class: 'btn ghost', style: 'padding:6px 14px' }, 'أرسل لي المعلومات');
+  fb.onclick = async () => { busy(fb, true); try { fm.textContent = await call('forgotKey', fe.value.trim(), SITE_URL); } catch (e) { fm.textContent = errText(e); } busy(fb, false); };
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'للمعلم'), h('h2', {}, 'دخول إلى لوحة الصف'),
+    h('div', { class: 'row' }, h('label', { for: 'tcc', class: 'sr' }, 'رمز الصف'), cc, h('label', { for: 'tkk', class: 'sr' }, 'مفتاح المعلم'), kk, go), err,
+    h('details', { class: 'teacher' }, h('summary', {}, 'نسيت رمز الصف أو المفتاح؟'), h('p', { class: 'hint' }, 'اكتب البريد الذي سجّلت به، ونرسل إليه معلومات كل صفوفك.'), h('div', { class: 'row' }, fe, fb), fm),
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: homeView }, 'رجوع'), h('span'))));
+}
+
+// ---------- strengths and weaknesses ----------
+const pctOf = s => s.max ? s.got / s.max : 0;
+const shortTag = s => s.tag.replace('الخطوة ', '');
+function profileView(steps, who) {
+  const st = (steps || []).map(s => ({ ...s, pct: pctOf(s) }));
+  const strong = st.filter(s => s.pct >= 0.8).sort((a, b) => b.pct - a.pct), weak = st.filter(s => s.pct < 0.5).sort((a, b) => a.pct - b.pct);
+  const li = s => h('li', {}, s.tag + ' – ' + s.title, h('span', { class: 'hint' }, ` (${Math.round(s.pct * 100)}%)`));
+  return h('div', { class: 'prof' },
+    h('div', { class: 'pcol good' }, h('b', {}, 'نقاط القوة'), h('div', { class: 'hint' }, '80% فأكثر من علامة القسم'),
+      strong.length ? h('ul', {}, ...strong.map(li)) : h('p', { class: 'hint' }, 'لا يوجد قسم وصل فيه ' + who + ' إلى 80%.')),
+    h('div', { class: 'pcol weak' }, h('b', {}, 'نقاط الضعف'), h('div', { class: 'hint' }, 'أقل من 50% من علامة القسم'),
+      weak.length ? h('ul', {}, ...weak.map(li)) : h('p', { class: 'hint' }, 'لا يوجد قسم أقل من 50%.')));
+}
+function stepBars(list) { // list: [{tag,title,pct}]
+  return h('div', { class: 'bars' }, ...list.map(s => h('div', { class: 'bar' },
+    h('span', { class: 'bl' }, s.tag + ' – ' + s.title),
+    h('span', { class: 'bt' }, h('i', { class: s.pct < 0.5 ? 'low' : s.pct < 0.8 ? 'mid' : 'high', style: `width:${Math.max(2, Math.round(s.pct * 100))}%` })),
+    h('span', { class: 'bv' }, Math.round(s.pct * 100) + '%'))));
+}
+let T = null; // teacher session {classCode, key, data}
+async function openDashboard(classCode, key) {
+  classCode = String(classCode).trim().toUpperCase(); key = String(key).trim().toUpperCase();
+  const data = await call('teacherData', classCode, key);
+  T = { classCode, key, data }; dashboardView();
+}
+const STATUS = { new: 'لم يبدأ', started: 'بدأ ولم يسلّم', submitted: 'سلّم' };
+function dashboardView() {
+  app.dataset.view = 'teacher'; S = null; P = null; rail(); setWho(T.data.label);
+  const d = T.data, rows = d.rows;
+  const done = rows.filter(r => r.status === 'submitted'), gs = done.map(r => r.grade);
+  const msg = h('div', { class: 'fb' }), holder = h('div'), detail = h('div');
+  const refresh = h('button', { class: 'btn ghost', style: 'padding:6px 14px' }, 'تحديث');
+  refresh.onclick = async () => { busy(refresh, true); try { T.data = await call('teacherData', T.classCode, T.key); dashboardView(); } catch (e) { busy(refresh, false); msg.textContent = errText(e); } };
+  const csvRows = [['رقم', 'رمز الطالب', 'الحالة', 'العلامة', 'وقت التسليم', 'k الحقيقي', 'k الطالب', ...(done[0] ? done[0].steps.map(s => s.tag) : [])],
+    ...rows.map(r => [r.seat, r.code, STATUS[r.status] || r.status, r.status === 'submitted' ? r.grade : '', r.submittedAt ? dt(r.submittedAt) : '', r.kTrue || '', r.kStudent || '', ...(r.steps || []).map(s => s.got)])];
+  const exportCsv = () => { const esc = v => '"' + String(v).replace(/"/g, '""') + '"'; const csv = '﻿' + csvRows.map(r => r.map(esc).join(',')).join('\r\n');
+    if (downloadText('علامات ' + d.label + '.csv', csv, 'text/csv')) msg.textContent = 'إذا لم يبدأ التنزيل، استعمل «انسخ الجدول».'; else copyText(csvRows.map(r => r.join('\t')).join('\n'), msg, holder); };
+  const addN = h('input', { type: 'number', id: 'addn', min: 1, max: 20, value: 1, style: 'width:70px' });
+  const addB = h('button', { class: 'btn ghost', style: 'padding:6px 14px' }, 'أضف رموزاً');
+  addB.onclick = async () => { busy(addB, true); try { T.data = await call('addCodes', T.classCode, T.key, Math.round(+addN.value)); dashboardView(); } catch (e) { busy(addB, false); msg.textContent = errText(e); } };
+  const showDetail = async r => {
+    const img = h('div', { class: 'hint' }, r.hasGraph ? 'جارٍ تحميل الرسم البياني…' : 'لم يرفع رسماً بيانياً.');
+    detail.replaceChildren(h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow' }, 'تفاصيل الطالب رقم ' + r.seat), h('h2', {}, r.code + ' · ' + r.grade + ' من 100'),
+      h('p', {}, 'k الحقيقي ', h('span', { class: 'law' }, r.kTrue + ' N/m'), ' · k الطالب ', h('span', { class: 'law' }, (r.kStudent || '—') + ' N/m'), ' · الميل ', h('span', { class: 'law' }, (r.slope || '—') + ' m/N'), ' · قراءات صحيحة ', h('b', {}, (r.readingsOk ?? '—') + ' من 18')),
+      h('div', { class: 'tblw' }, h('table', { class: 'data' }, h('tbody', {}, ...(r.steps || []).map(s => h('tr', {}, h('td', { style: 'text-align:start' }, s.tag + ' – ' + s.title), h('td', {}, `${fmt(s.got, 1)} من ${s.max}`)))))),
+      h('h3', {}, 'نقاط القوة والضعف'), profileView(r.steps, 'الطالب'),
+      h('h3', {}, 'الأسئلة الخاطئة'), (r.wrong || []).length ? h('ul', { class: 'wrongs' }, ...r.wrong.map(w => h('li', {}, h('b', {}, w.tag + ': '), w.q, h('span', { class: 'hint' }, ` (${fmt(w.got, 1)} من ${w.max})`)))) : h('p', {}, 'لا يوجد.'),
+      img, h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: () => detail.replaceChildren() }, 'إغلاق'), h('span'))));
+    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (r.hasGraph) { try { const src = await call('getGraph', T.classCode, T.key, r.code); img.replaceChildren(h('div', { class: 'up' }, h('span', { class: 'hint' }, 'الرسم البياني الذي رفعه:'), h('img', { src, alt: 'رسم الطالب' }))); } catch (e) { img.textContent = 'تعذّر تحميل الرسم: ' + errText(e); } }
+  };
+  const resetBtn = r => { const b = h('button', { class: 'btn ghost mini danger' }, 'إعادة فتح'); let armed = false;
+    b.onclick = async () => { if (!armed) { armed = true; b.textContent = 'تأكيد؟'; return; }
+      busy(b, true); try { T.data = await call('resetCode', T.classCode, T.key, r.code); dashboardView(); msgSet('أُعيد فتح الرمز ' + r.code + '. يستطيع الطالب الدخول به من جديد.'); } catch (e) { busy(b, false); msg.textContent = errText(e); } };
+    return b; };
+  const msgSet = t => { const m = $('#tmsg'); if (m) m.textContent = t; };
+  const classSteps = done.length ? done[0].steps.map((s, i) => ({ tag: s.tag, title: s.title, pct: done.reduce((a, r) => a + (r.steps[i] ? pctOf(r.steps[i]) : 0), 0) / done.length })) : [];
+  const weakest = classSteps.slice().sort((a, b) => a.pct - b.pct).slice(0, 3).filter(s => s.pct < 0.8);
+  const classBlock = done.length ? h('div', {},
+    h('h3', {}, 'أداء الصف في خطوات البحث العلمي'),
+    h('p', { class: 'hint' }, 'معدل ما حصل عليه الطلاب الذين سلّموا من علامة كل قسم.'),
+    stepBars(classSteps),
+    weakest.length ? h('div', { class: 'note' }, h('b', {}, 'يحتاج الصف إلى مراجعة: '), weakest.map(s => `${s.title} (${Math.round(s.pct * 100)}%)`).join('، ')) : h('div', { class: 'info' }, 'أداء الصف جيد في كل الأقسام (80% فأكثر).')) : null;
+  const weakTags = r => (r.steps || []).filter(s => pctOf(s) < 0.5).map(shortTag).join('، ') || '—';
+  msg.id = 'tmsg';
+  app.replaceChildren(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'لوحة الصف · رمز الصف ' + d.classCode), h('h2', {}, d.label),
+    h('div', { class: 'stats' }, ...[['سلّموا', `${done.length} من ${rows.length}`], ['المعدل', gs.length ? fmt(gs.reduce((a, b) => a + b, 0) / gs.length, 1) : '—'], ['أعلى علامة', gs.length ? Math.max(...gs) : '—'], ['أدنى علامة', gs.length ? Math.min(...gs) : '—']]
+      .map(([l, v]) => h('div', { class: 'stat' }, h('div', { class: 'sv' }, String(v)), h('div', { class: 'sl' }, l)))),
+    h('div', { class: 'row noprint', style: 'justify-content:space-between;margin:14px 0' }, h('div', { class: 'row' }, refresh, h('button', { class: 'btn ghost', style: 'padding:6px 14px', onclick: exportCsv }, 'نزّل العلامات (Excel)'), h('button', { class: 'btn ghost', style: 'padding:6px 14px', onclick: () => copyText(csvRows.map(r => r.join('\t')).join('\n'), msg, holder) }, 'انسخ الجدول'), h('button', { class: 'btn ghost', style: 'padding:6px 14px', onclick: () => window.print() }, 'اطبع')),
+      h('div', { class: 'row' }, addN, addB)), msg, holder, classBlock, h('h3', {}, 'الطلاب'),
+    h('div', { class: 'tblw' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'رقم'), h('th', {}, 'رمز الطالب'), h('th', {}, 'الحالة'), h('th', {}, 'العلامة'), h('th', {}, 'أقسام ضعيفة (أقل من 50%)'), h('th', {}, 'التسليم'), h('th', { class: 'noprint' }, ''))),
+      h('tbody', {}, ...rows.map(r => h('tr', { class: 'st-' + r.status }, h('td', {}, String(r.seat)), h('td', { class: 'ltr', style: 'font-family:var(--f-mono)' }, r.code), h('td', {}, h('span', { class: 'pill ' + r.status }, STATUS[r.status] || r.status)),
+        h('td', {}, r.status === 'submitted' ? h('b', {}, String(r.grade)) : '—'), h('td', { style: 'font-size:13px' }, r.status === 'submitted' ? weakTags(r) : ''), h('td', {}, r.submittedAt ? dt(r.submittedAt) : ''),
+        h('td', { class: 'noprint', style: 'white-space:nowrap' }, r.status === 'submitted' ? h('button', { class: 'btn ghost mini', onclick: () => showDetail(r) }, 'تفاصيل') : null, r.status !== 'new' ? resetBtn(r) : null)))))),
+    h('p', { class: 'hint' }, '«إعادة فتح» تحذف تسليم الطالب وتسمح له بالدخول بنفس الرمز من جديد.'),
+    h('div', { class: 'actions noprint' }, h('button', { class: 'btn ghost', onclick: () => { T = null; homeView(); } }, 'خروج'), h('span'))), detail);
+}
+
+homeView();
+
+</script>
+</body>
+</html>
